@@ -4,6 +4,7 @@
   "description": "A jQuery explosion plugin.",
   "main": "dist/jquery.imgexplode.min.js",
   "scripts": {
+    "build":"gulp default",
     "test": "echo \"Error: no test specified\" && exit 1",
     "eslint": "./node_modules/.bin/eslint jquery.imgexplode.js --cache --fix"
   },

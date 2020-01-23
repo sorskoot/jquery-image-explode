@@ -1,90 +1,119 @@
-(function ($) {
-    "use strict";
-    const wrapperName = "explode-wrapper";
-    if(!$){
-        console.error("jQuery or Zepto is needed.");
-        return;
+"use strict";
+
+class ImgExplode {
+
+    static get wrapperName() { return "explode-wrapper"; }
+
+    /**
+     * Create a new instance of the image exploder
+     * @param {NodeListOf<HTMLImageElement> | HTMLImageElement} elementToExplode The element to explode
+     */
+    constructor(elementToExplode) {
+        this.target = elementToExplode;
     }
-    $.fn.explodeRestore = function () {
-        this.each(function () { //restore separately
-            const $dom = $(this);
-            const wrapper = $dom.prop(wrapperName);
+
+    explodeRestore() {
+        
+        function restore(element){
+            const wrapper = element.wrapperName;
             if (wrapper) {
-                wrapper.replaceWith($dom);
-                $dom.prop(wrapperName, null);
+                wrapper.replaceWith(element);
+                element.wrapperName= null;
             }
-        });
+        }
+
+        if (!(this.target instanceof HTMLElement)) {
+            for (let i = 0; i < this.target.length; i++) {
+                restore(this.target[i]);
+            }
+        }else{
+            restore(this.target);
+        }
     };
-    $.fn.explode = function (opt) {
+
+
+    explode(opt) {
         if (!opt || typeof opt !== "object") {
             opt = {};
         }
 
         const {
             minWidth = 3,
-                omitLastLine = false,
-                radius = 80,
-                minRadius = 0,
-                release = true,
-                fadeTime = 300,
-                recycle = true,
-                recycleDelay = 500,
-                fill = true,
-                explodeTime = 300,
-                maxAngle = 360,
-                gravity = 0,
-                round = false,
-                groundDistance = 400,
-                land=true,
-                checkOutBound,
-                finish,
+            omitLastLine = false,
+            radius = 80,
+            minRadius = 0,
+            release = true,
+            fadeTime = 300,
+            recycle = true,
+            recycleDelay = 500,
+            fill = true,
+            explodeTime = 300,
+            maxAngle = 360,
+            gravity = 0,
+            round = false,
+            groundDistance = 400,
+            land = true,
+            checkOutBound,
+            finish,
         } = opt;
 
         let {
             maxWidth
         } = opt;
 
-        const $target = this;
-        let $targetImage;
+        let targetImage;
         const args = arguments;
-        if ($target.length > 1) { //explode separately
-            $target.each(function () {
-                const $dom = $(this);
-                $dom.explode.apply($dom, args);
-            });
-            return;
-        } else if (!$target.length) {
-            return;
-        }
-        if(!$.contains(document,$target[0])){
-            return ;
-        }
-        if ($target.prop("tagName") === "IMG") {
-            if (!$target.prop("complete")) {
 
-                $target.on("load", function () {
-                    $target.explode.apply($target, args);
+        let target = this.target;
+        // if the target element is not an HTML Element, we assume it's a nodelist
+        if (!(this.target instanceof HTMLElement)) {
+            //if there's more then 1 element to explode, explode them separately
+            if (this.target.length > 1) {
+                this.target.forEach(elem => {
+                    let expl = new ImgExplode(elem);
+                    expl.explode(args);
                 });
                 return;
+                // if there are no nodes to explode, return
+            } else if (!this.target.length) {
+                return;
             }
-            $targetImage = $target;
-        } else if ($target.css("backgroundImage") !== "none") {
+            target = this.target[0];
+        }
 
-            const src = $target.css("backgroundImage").match(/url\(\"([\S\s]*)\"\)/)[1];
-            $targetImage = $("<img/>", {
-                src
-            });
+        // if the document does not contain the target element, return
+        if (!document.contains(target)) {
+            return;
+        }
+
+        // 
+        if (target.tagName === "IMG") {
+            if (!target.complete) {
+                target.onload = () => {
+                    let expl = new ImgExplode(target);
+                    expl.explode(args);
+                };
+                return;
+            }
+            targetImage = target;
+        } else if (target.style.backgroundImage !== "") {
+
+            const src = target.style.backgroundImage.match(/url\(\"([\S\s]*)\"\)/)[1];
+            targetImage = document.createElement("img");
+            targetImage.src = src;
+
             if (!opt.ignoreCompelete) {
-                $targetImage.on("load", function () {
+                targetImage.onload = () => {
                     opt.ignoreCompelete = true;
-                    $target.explode.apply($target, [opt]);
-                });
+                    let expl = new ImgExplode(target);
+                    expl.explode(opt);
+                };
                 return;
             }
         }
 
-        const w = $target.width();
-        const h = $target.height();
+        const w = target.width;
+        const h = target.height;
         const minorDimension = Math.min(w, h);
         const radiusData = getRadiusData();
 
@@ -93,16 +122,16 @@
         if (!maxWidth) {
             maxWidth = minorDimension / 4;
         }
-        const $wrapper = $("<div></div>", {
-            "class": wrapperName,
-        });
+        const wrapper = document.createElement('div');
+        wrapper.classList.add(ImgExplode.wrapperName);
+
         const syncStyles = ["width", "height", "margin-top", "margin-right", "margin-bottom", "margin-left", "position", "top", "right", "bottom", "left", "float", "display"];
         syncStyles.forEach((v) => {
-            $wrapper.css(v, $target.css(v));
+            wrapper.style[v] = target.style[v];
         });
-        //        $wrapper.css("background-color", "black");
-        if ($wrapper.css("position") === "static") {
-            $wrapper.css("position", "relative");
+
+        if (wrapper.style.position === "static") {
+            wrapper.style.position = "relative";
         }
 
         const startRatio = 0.3;
@@ -111,20 +140,16 @@
         const rags = generateRags();
         getRagsFinalState();
 
-        const $canvas = $("<canvas></canvas>");
+        const canvas = document.createElement("canvas");
 
         //standard canvas, to draw the ideal target
-        const $canvas0 = $("<canvas></canvas>");
-        $canvas0.css({
-            width: w,
-            height: h,
-        });
-        $canvas0.attr({
-            width: w,
-            height: h,
-        });
+        const canvas0 = document.createElement("canvas");
+        canvas0.style.width = w;
+        canvas0.style.height = h;
+        canvas0.setAttribute("width", w);
+        canvas0.setAttribute("height", h);
 
-        $canvas.css({
+        Object.assign(canvas.style, {
             position: "absolute",
             left: (w - ctxWidth) / 2,
             right: (w - ctxWidth) / 2,
@@ -134,37 +159,38 @@
             width: ctxWidth,
             height: ctxHeight,
         });
-        $canvas.attr({
-            width: ctxWidth,
-            height: ctxHeight,
-        });
 
-        $wrapper.append($canvas);
+        canvas.setAttribute("width", ctxWidth);
+        canvas.setAttribute("height", ctxHeight);
+        
+        wrapper.append(canvas);
 
-        const ctx = $canvas[0].getContext("2d");
-        const ctx0 = $canvas0[0].getContext("2d");
-        function warn(key,config) {
+        const ctx = canvas.getContext("2d");
+        const ctx0 = canvas0.getContext("2d");
+
+        function warn(key, config) {
             console.warn(`Unsupported ${key} style:${config[key]}`);
         }
         const {
             naturalWidth,
             naturalHeight
-        } = $targetImage?$targetImage[0]:{};
-        if ($target.prop("tagName") === "IMG") {
-            ctx0.drawImage($targetImage[0], 0, 0, naturalWidth, naturalHeight, 0, 0, w, h);
-        } else if ($target.css("backgroundImage") !== "none") {
+        } = targetImage;
+
+        if (target.tagName === "IMG") {
+            ctx0.drawImage(targetImage, 0, 0, naturalWidth, naturalHeight, 0, 0, w, h);
+        } else if (target.style.backgroundImage !== "") {
             let dx = 0,
                 dy = 0,
                 dWidth = naturalWidth,
                 dHeight = naturalHeight;
             let config = {
-                "background-repeat": $target.css("background-repeat"),
-                "background-size": $target.css("background-size"),
-                "background-position-x": $target.css("background-position-x"),
-                "background-position-y": $target.css("background-position-y"),
+                "background-repeat": target.style.backgroundRepeat,
+                "background-size": target.style.backgroundSize,
+                "background-position-x": target.style.backgroundPositionX,
+                "background-position-y": target.style.backgroundPositionY,
             };
 
-            
+
             const ratioW = w / naturalWidth;
             const ratioH = h / naturalHeight;
 
@@ -180,7 +206,7 @@
                 dWidth = naturalWidth * ratio;
                 dHeight = naturalHeight * ratio;
             } else {
-                warn("background-size",config);
+                warn("background-size", config);
 
             }
             dx = parseInt(config["background-position-x"]) / 100 * (w - dWidth);
@@ -189,17 +215,17 @@
             if (config["background-repeat"] === "repeat") {
                 for (var i = 0 - Math.ceil(dx / dWidth); i < w / dWidth + Math.ceil(-dx / dWidth); i++) {
                     for (var j = 0 - Math.ceil(dy / dHeight); j < h / dHeight + Math.ceil(-dy / dHeight); j++) {
-                        ctx0.drawImage($targetImage[0], 0, 0, naturalWidth, naturalHeight, dx + i * dWidth, dy + j * dHeight, dWidth, dHeight);
+                        ctx0.drawImage(targetImage[0], 0, 0, naturalWidth, naturalHeight, dx + i * dWidth, dy + j * dHeight, dWidth, dHeight);
                     }
                 }
             } else if (config["background-repeat"] === "no-repeat") {
-                ctx0.drawImage($targetImage[0], 0, 0, naturalWidth, naturalHeight, dx, dy, dWidth, dHeight);
+                ctx0.drawImage(targetImage[0], 0, 0, naturalWidth, naturalHeight, dx, dy, dWidth, dHeight);
             } else {
-                warn("background-repeat",config);
+                warn("background-repeat", config);
             }
 
-        } else if ($target.css("backgroundColor") !== "rgba(0, 0, 0, 0)") {
-            ctx0.fillStyle = $target.css("backgroundColor");
+        } else if (target.style.backgroundColor !== "rgba(0, 0, 0, 0)") {
+            ctx0.fillStyle = target.style.backgroundColor;
             ctx0.fillRect(0, 0, w, h);
         } else {
             console.warn("There's nothing to explode.");
@@ -216,22 +242,24 @@
             rag.naturalParams = [left, top, ragWidth, ragHeight];
         });
 
-        $target.after($wrapper);
-        $target.prop(wrapperName, $wrapper);
-        $target.detach();
+        target.after(wrapper)
+        target.wrapperName = wrapper;
+        target.remove();
 
         let biasVy = 0;
 
         explode(function () {
             if (release) {
-                doRelease();
+                doRelease(()=>{
+                    wrapper.remove();
+                });
             } else if (recycle) {
                 doRecycle();
-            }else{
-                finish&&finish();
+            } else {
+                finish && finish();
             }
         });
-        
+
         function doRelease(cb) {
             const startTime = Date.now();
             let leftCnt = rags.length;
@@ -278,7 +306,7 @@
                         leftCnt--;
                     }
                     ctx.globalAlpha = alpha;
-                    ctx.drawImage($canvas0[0], rag.left, rag.top, rag.width, rag.height, -ragWidth / 2, -ragHeight / 2, ragWidth, ragHeight);
+                    ctx.drawImage(canvas0, rag.left, rag.top, rag.width, rag.height, -ragWidth / 2, -ragHeight / 2, ragWidth, ragHeight);
                     ctx.restore();
                 });
                 if (!leftCnt) {
@@ -290,15 +318,13 @@
         }
 
         function doRecycle() {
-            setTimeout(function () {
-                explode(function () {
-                    $target.explodeRestore();
+            setTimeout( () => {
+                explode( () => {
+                    this.explodeRestore();
                 }, true);
             }, recycleDelay);
 
         }
-
-
 
         function explode(cb, reverse) {
             const startTime = Date.now();
@@ -356,17 +382,17 @@
                         rag.biasy += (rag.vy + biasVy) * ratio;
 
                         if (gravity) {
-                            if (checkOutBound && checkOutBound(rag) 
+                            if (checkOutBound && checkOutBound(rag)
                                 || rag.biasy > rag.transYMax
-                               || rag.biasy < rag.height/2) {
+                                || rag.biasy < rag.height / 2) {
                                 leftCnt--;
                                 rag.land = true;
                                 rag.lastAngle = rag.finalAngleRad * angleRatio;
-                                
-                                if(land){
-                                    rag.biasy = gravity>0?rag.transYMax:rag.height/2;
-                                }else{
-                                    rag.biasy=rag.transYMax*2;//hide
+
+                                if (land) {
+                                    rag.biasy = gravity > 0 ? rag.transYMax : rag.height / 2;
+                                } else {
+                                    rag.biasy = rag.transYMax * 2;//hide
                                 }
                             }
 
@@ -388,7 +414,7 @@
                         ctx.clip();
                     }
 
-                    ctx.drawImage($canvas0[0], rag.left, rag.top, rag.width, rag.height, -ragWidth / 2, -ragHeight / 2, ragWidth, ragHeight);
+                    ctx.drawImage(canvas0, rag.left, rag.top, rag.width, rag.height, -ragWidth / 2, -ragHeight / 2, ragWidth, ragHeight);
                     ctx.restore();
                 });
                 if (gravity && !leftCnt) {
@@ -557,9 +583,9 @@
         //get an array of 4 corners of radius        
         function getRadiusData() {
             let ret = ["border-top-left-radius", "border-top-right-radius", "border-bottom-right-radius", "border-bottom-left-radius"];
-            const width = $target.width();
+            const width = target.width;
             ret = ret.map(function (key) {
-                let radius = $target.css(key);
+                let radius = target.style[key];
                 if (radius.match(/px$/)) {
                     return radius.match(/^\d+/)[0] * 1;
                 } else if (radius.match(/%$/)) {
@@ -576,4 +602,4 @@
             return ret;
         }
     };
-})(window.jQuery||window.Zepto);
+}

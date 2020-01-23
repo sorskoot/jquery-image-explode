@@ -3,7 +3,9 @@
 
 <head>
     <meta charset="utf-8">
-    <meta id="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, minimum-scale=1,  user-scalable=no,minimal-ui" name="viewport">
+    <meta id="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1, minimum-scale=1,  user-scalable=no,minimal-ui"
+        name="viewport">
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no">
     <title>Explosion Demo</title>
@@ -16,7 +18,7 @@
             width: 277px;
             border-radius: 50px;
         }
-        
+
         #github {
             position: absolute;
             top: 0;
@@ -34,22 +36,30 @@
 <body style="margin:0;text-align:center;">
     <a id="github" target="_blank" href="https://github.com/blackmiaool/jquery-image-explode"></a>
     <img id="target" src="./demo.jpg" />
+    <div id="t1">
+        <div id="t2">
+            <span id="t3">
+
+            </span>
+        </div>
+    </div>
     <button style="position:fixed;right:0;top:0;width:100px;height:50px;" onclick="explode()">Explode</button>
-    <script src="lib/jquery-3.1.0.js"></script>
+    <!-- <script src="lib/jquery-3.1.0.js"></script> -->
     <!--<script src="lib/zepto1.2.0.js"></script>-->
-    <!--<script src="jquery.imgexplode.js"></script>-->
-    <script src="dist/jquery.imgexplode.min.js"></script>
+    <script src="jquery.imgexplode.js"></script>
+    <!-- <script src="dist/jquery.imgexplode.min.js"></script> -->
     <script>
-        var $target = $("#target");
+
+        var target = new ImgExplode(document.querySelectorAll('#target'));
 
         function explode() {
-            $target.explodeRestore();
+            target.explodeRestore();
             setTimeout(function () {
-                $target.explode({
+                target.explode({
                     maxWidth: 15,
                     minWidth: 5,
                     radius: 231,
-                    release: false,
+                    release: true,
                     recycle: false,
                     explodeTime: 320,
                     canvas: true,
